@@ -273,18 +273,10 @@ def analyze_with_gemini(gemini_file) -> Optional[dict]:
     """Send video to Gemini for forensic analysis."""
     try:
         response = gemini_client.models.generate_content(
-            model="gemini-2.0-flash-lite",
+            model="gemini-2.5-flash",
             contents=[
-                types.Content(
-                    role="user",
-                    parts=[
-                        types.Part.from_uri(
-                            file_uri=gemini_file.uri,
-                            mime_type="video/mp4"
-                        ),
-                        types.Part.from_text(text="Analyze this video forensically and return your assessment as JSON.")
-                    ]
-                )
+                gemini_file,
+                "Analyze this video forensically and return your assessment as JSON."
             ],
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
