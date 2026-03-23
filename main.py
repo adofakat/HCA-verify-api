@@ -147,12 +147,12 @@ async def download_video(url: str, output_path: Path) -> bool:
     cmd = [
         "yt-dlp",
         "--no-playlist",
-        "--format", "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]/best",
+        "--format", "bestvideo[height<=720]+bestaudio/best[height<=720]/best",
         "--merge-output-format", "mp4",
         "--download-sections", "*0:00-1:00",
         "--force-keyframes-at-cuts",
-        "--no-warnings",
-        "--quiet",
+        "--no-check-certificates",
+        "--add-header", "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "-o", str(output_path),
         url
     ]
@@ -162,11 +162,17 @@ async def download_video(url: str, output_path: Path) -> bool:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=90)
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+        stderr_text = stderr.decode() if stderr else ""
+        if stderr_text:
+            print(f"yt-dlp stderr: {stderr_text[:500]}")
+        print(f"yt-dlp exit code: {proc.returncode}, file exists: {output_path.exists()}")
         return proc.returncode == 0 and output_path.exists()
     except asyncio.TimeoutError:
+        print("yt-dlp timed out after 120s")
         return False
-    except Exception:
+    except Exception as e:
+        print(f"yt-dlp exception: {e}")
         return False
 
 def upload_to_gemini(video_path: Path) -> Optional[object]:
