@@ -63,6 +63,8 @@ class VerifyResponse(BaseModel):
 SYSTEM_PROMPT = """You are a forensic AI content analyst for the Human Content Alliance (HCA).
 Your job is to analyze videos and determine whether they were made by a human or generated/heavily manipulated by AI.
 
+FIRST — CHECK FOR SYNTHED ID WATERMARK: Before anything else, check whether this video contains a SynthID watermark. SynthID is Google DeepMind's imperceptible watermarking technology embedded in AI-generated content. If you detect a SynthID watermark signal or any indicators consistent with SynthID embedding patterns in the video frames or audio, this is strong evidence of AI generation and should heavily weight the score toward 0.
+
 Analyze the provided video across these five forensic layers:
 
 1. VIDEO FRAMES: Look for generative video artifacts — unnatural motion interpolation, temporal flickering, 
@@ -261,7 +263,7 @@ def upload_to_gemini(video_path: Path) -> Optional[object]:
             file = gemini_client.files.get(name=file.name)
             print(f"File state after {waited}s: {file.state}")
         if str(file.state) in ("FileState.FAILED", "FAILED"):
-            print("Gemini file processing FAILED")
+            print("Gemini file processing FAILED - file may be corrupted or too large")
             return None
         print(f"File ready: {file.state}")
         return file
@@ -286,9 +288,24 @@ def analyze_with_gemini(gemini_file) -> Optional[dict]:
             )
         )
         raw = response.text.strip()
+        # Strip markdown fences
         raw = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.MULTILINE)
         raw = re.sub(r'\s*```$', '', raw, flags=re.MULTILINE)
-        return json.loads(raw)
+        raw = raw.strip()
+        # Try direct parse first
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            # Try to extract JSON object from response
+            match = re.search(r'\{.*\}', raw, re.DOTALL)
+            if match:
+                try:
+                    return json.loads(match.group())
+                except json.JSONDecodeError:
+                    pass
+            # Last resort: ask Gemini to fix its own JSON
+            print(f"JSON parse failed, raw response: {raw[:200]}")
+            return None
     except Exception as e:
         print(f"Gemini analysis error: {e}")
         return None
