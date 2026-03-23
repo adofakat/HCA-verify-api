@@ -76,13 +76,13 @@ SYSTEM_PROMPT = (
     "is more harmful than a false negative (flagging human content as AI).\n\n"
 
     "Score is calculated from 5 weighted layers (max 60 pts) + SynthID gate:\n"
-    "  AUDIO SIGNAL:      max 20 pts (highest weight - hardest signal to fake)\n"
-    "  VIDEO FRAMES:      max 15 pts\n"
-    "  FACE ANALYSIS:     max 15 pts\n"
+    "  AUDIO SIGNAL:        max 20 pts (highest weight - hardest signal to fake)\n"
+    "  VIDEO FRAMES:        max 15 pts\n"
+    "  FACE ANALYSIS:       max 15 pts\n"
     "  METADATA/PROVENANCE: max 7 pts\n"
-    "  SCRIPT/NARRATION:  max 3 pts\n"
-    "  Total base max:    60 pts\n"
-    "  Scale to 100:      multiply base by (100/60)\n\n"
+    "  SCRIPT/NARRATION:    max 3 pts\n"
+    "  Total base max:      60 pts\n"
+    "  Scale to 100:        multiply base by (100/60)\n\n"
 
     "=== STEP 1: SYNTHEID WATERMARK GATE (EXECUTE FIRST) ===\n"
     "SynthID is Google DeepMind's imperceptible AI watermarking system embedded in content "
@@ -90,7 +90,7 @@ SYSTEM_PROMPT = (
     "Check for SynthID in VIDEO by looking for:\n"
     "- Imperceptible periodic pixel-level patterns in uniform surfaces (sky, walls, skin)\n"
     "- Micro-level luminance variations that repeat at regular spatial intervals\n"
-    "- Texture 'breathing' - subtle oscillations in static background regions between frames\n"
+    "- Texture breathing: subtle oscillations in static background regions between frames\n"
     "- Unnatural edge-frequency distribution in DCT/frequency domain (too regular)\n\n"
     "Check for SynthID in AUDIO by looking for:\n"
     "- Imperceptible high-frequency watermark tones embedded in silence or ambient noise\n"
@@ -110,7 +110,7 @@ SYSTEM_PROMPT = (
     "SILENT VIDEO PENALTY: If the video has no spoken content or audio, "
     "apply -8 pts to the total base score. Silence removes a key verification layer "
     "and is treated as a mild negative signal.\n\n"
-    "AI audio red flags (deduct proportionally):\n"
+    "AI audio red flags:\n"
     "- Perfectly flat formant transitions between phonemes\n"
     "- Missing fricative noise on sibilants (s, sh, f sounds)\n"
     "- Breath events that are perfectly timed to sentence boundaries\n"
@@ -131,7 +131,7 @@ SYSTEM_PROMPT = (
     "- Physics violations (hair defying gravity, liquid behaving incorrectly)\n\n"
 
     "=== STEP 4: FACE ANALYSIS (15 pts - award 15 if no face present) ===\n"
-    "If no human face is visible, award full 15 pts and mark as 'not applicable'.\n"
+    "If no human face is visible, award full 15 pts and mark as not applicable.\n"
     "If face is present:\n"
     "- Pupil shape and specular highlights consistent with real lighting: +3 pts\n"
     "- Skin texture has natural pore-level variation (not painted/smooth): +3 pts\n"
@@ -152,74 +152,42 @@ SYSTEM_PROMPT = (
     "- Language has natural personality, imperfections, genuine emotion: +1.5 pts\n"
     "- Content structure is non-formulaic (not listicle format, not template-like): +1.5 pts\n\n"
     "AI script red flags: overly structured, perfect grammar throughout, sounds like marketing copy, "
-    "uses AI-typical phrases like 'delve into', 'it is worth noting', 'in conclusion'.\n\n"
+    "uses AI-typical phrases like delve into, it is worth noting, in conclusion.\n\n"
 
     "=== STEP 7: INFORMATION INTEGRITY (independent of AI score) ===\n"
     "Run this analysis regardless of the AI/human verdict, but focus effort when score > 50.\n"
-    "Evaluate the factual claims and narrative of the content:\n\n"
+    "Evaluate the factual claims and narrative of the content.\n\n"
     "Severity levels:\n"
-    "- 'none': Content makes no factual claims or all claims appear accurate\n"
-    "- 'context_needed': Claims are technically true but lack important context, "
+    "- none: Content makes no factual claims or all claims appear accurate\n"
+    "- context_needed: Claims are technically true but lack important context, "
     "or uses emotional framing that could mislead without being outright false\n"
-    "- 'misleading': Content makes claims that contradict documented evidence, "
+    "- misleading: Content makes claims that contradict documented evidence, "
     "omits critical context deliberately, or uses manipulative framing\n"
-    "- 'dangerous': Content promotes demonstrably false information about health, "
+    "- dangerous: Content promotes demonstrably false information about health, "
     "safety, elections, or incites harm. Spreads disinformation that could cause real-world damage\n\n"
     "Also flag: satire or parody presented without clear labeling, "
     "out-of-context footage used to support a false narrative, "
     "exaggerated claims not supported by visible evidence.\n\n"
-    "Be conservative - only flag 'dangerous' for clear, serious disinformation. "
+    "Be conservative - only flag dangerous for clear, serious disinformation. "
     "Give benefit of the doubt for opinion, satire, and cultural commentary.\n\n"
 
     "=== OUTPUT FORMAT ===\n"
     "Return ONLY a valid JSON object. No markdown. No text outside the JSON.\n\n"
-    "{\n"
-    '  "score": <integer 0-100 after applying all weights and gates>,\n'
-    '  "verdict": "<human if score >= 68, else ai>",\n'
-    '  "synthed_detected": <true or false>,\n'
-    '  "video_frames": {\n'
-    '    "status": "<pass, fail, or warn>",\n'
-    '    "label": "<6 words max, no truncation>",\n'
-    '    "detail": "<max 2 sentences, specific evidence>"\n'
-    "  },\n"
-    '  "audio_signal": {\n'
-    '    "status": "<pass, fail, or warn>",\n'
-    '    "label": "<6 words max>",\n'
-    '    "detail": "<max 2 sentences>"\n'
-    "  },\n"
-    '  "face_analysis": {\n'
-    '    "status": "<pass, fail, or warn>",\n'
-    '    "label": "<6 words max>",\n'
-    '    "detail": "<max 2 sentences>"\n'
-    "  },\n"
-    '  "metadata": {\n'
-    '    "status": "<pass, fail, or warn>",\n'
-    '    "label": "<6 words max>",\n'
-    '    "detail": "<max 2 sentences>"\n'
-    "  },\n"
-    '  "script_analysis": {\n'
-    '    "status": "<pass, fail, or warn>",\n'
-    '    "label": "<6 words max>",\n'
-    '    "detail": "<max 2 sentences>"\n'
-    "  },\n"
-    '  "information_integrity": {\n'
-    '    "severity": "<none, context_needed, misleading, or dangerous>",\n'
-    '    "label": "<6 words max>",\n'
-    '    "detail": "<max 2 sentences describing what was found>"\n'
-    "  },\n"
-    '  "findings": [\n'
-    '    "<Most important signal detected — be specific>",\n'
-    '    "<Second most important signal>",\n'
-    '    "<Third signal or information integrity note if relevant>"\n'
-    "  ]\n"
-    "}\n\n"
+    '{"score":<int 0-100>,"verdict":"<human or ai>","synthed_detected":<true or false>,'
+    '"video_frames":{"status":"<pass|fail|warn>","label":"<6 words max>","detail":"<2 sentences max>"},'
+    '"audio_signal":{"status":"<pass|fail|warn>","label":"<6 words max>","detail":"<2 sentences max>"},'
+    '"face_analysis":{"status":"<pass|fail|warn>","label":"<6 words max>","detail":"<2 sentences max>"},'
+    '"metadata":{"status":"<pass|fail|warn>","label":"<6 words max>","detail":"<2 sentences max>"},'
+    '"script_analysis":{"status":"<pass|fail|warn>","label":"<6 words max>","detail":"<2 sentences max>"},'
+    '"information_integrity":{"severity":"<none|context_needed|misleading|dangerous>","label":"<6 words max>","detail":"<2 sentences max>"},'
+    '"findings":["<finding 1>","<finding 2>","<finding 3>"]}\n\n'
     "ABSOLUTE RULES:\n"
-    "1. Every label: MAXIMUM 6 words. Hard limit.\n"
-    "2. Every detail: MAXIMUM 2 sentences. Hard limit.\n"
+    "1. Labels: MAXIMUM 6 words. Hard limit. Never truncate.\n"
+    "2. Details: MAXIMUM 2 sentences. Hard limit. Never truncate.\n"
     "3. JSON must be 100% complete and valid. Never leave a string open.\n"
-    "4. SynthID detection caps score at 20 — this is non-negotiable.\n"
-    "5. Score threshold for human verdict is 68, not 50.\n"
-    "6. Be conservative with information_integrity — only flag clear violations.\n"
+    "4. SynthID detection caps score at 20. Non-negotiable.\n"
+    "5. Human verdict threshold is 68, not 50.\n"
+    "6. Be conservative with information_integrity.\n"
 )
 
 
@@ -250,7 +218,7 @@ def get_cookies_path() -> Optional[Path]:
     print("No cookies available")
     return None
 
-async def run_ytdlp(cmd: list, timeout: int = 120) -> tuple:
+async def run_cmd(cmd: list, timeout: int = 120) -> tuple:
     try:
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -258,63 +226,95 @@ async def run_ytdlp(cmd: list, timeout: int = 120) -> tuple:
             stderr=asyncio.subprocess.PIPE
         )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        stderr_text = stderr.decode(errors="replace") if stderr else ""
-        return proc.returncode, stderr_text
+        return proc.returncode, stderr.decode(errors="replace") if stderr else ""
     except asyncio.TimeoutError:
         return -1, "timeout"
     except Exception as e:
         return -1, str(e)
 
-async def download_video(url: str, output_path: Path) -> bool:
+async def reencode_video(input_path: Path, output_path: Path) -> bool:
+    """Re-encode video to H.264/AAC MP4 — required for Gemini compatibility."""
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(input_path),
+        "-t", "30",                    # max 30 seconds
+        "-vf", "scale='min(1280,iw)':-2",  # cap at 1280px wide
+        "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "28",                  # reasonable quality/size balance
+        "-c:a", "aac",
+        "-b:a", "128k",
+        "-movflags", "+faststart",
+        str(output_path)
+    ]
+    code, stderr = await run_cmd(cmd, timeout=60)
+    if code != 0:
+        print(f"ffmpeg re-encode failed: {stderr[:200]}")
+        return False
+    size = output_path.stat().st_size if output_path.exists() else 0
+    print(f"Re-encoded: {size//1024}KB")
+    return output_path.exists() and size > 0
+
+async def download_video(url: str, raw_path: Path, final_path: Path) -> bool:
     cookies_path = get_cookies_path()
     cookies_args = ["--cookies", str(cookies_path)] if cookies_path else []
+    platform = detect_platform(url)
 
-    base_cmd = [
+    # Platform-specific extractor args to bypass bot detection
+    extractor_args = []
+    if platform == "YouTube":
+        # android_vr client bypasses the n-challenge entirely
+        extractor_args = ["--extractor-args", "youtube:player_client=android_vr"]
+    elif platform == "TikTok":
+        extractor_args = ["--extractor-args", "tiktok:api_hostname=api22-normal-c-useast2a.tiktokv.com"]
+
+    base_args = [
         sys.executable, "-m", "yt_dlp",
         "--no-playlist",
-        "--merge-output-format", "mp4",
-        "--download-sections", "*0:00-0:30",
-        "--force-keyframes-at-cuts",
         "--no-check-certificates",
         "--socket-timeout", "30",
-        "-o", str(output_path),
-    ] + cookies_args
+        "--max-filesize", "80M",
+        "-o", str(raw_path),
+    ] + cookies_args + extractor_args
 
     browser_headers = [
         "--add-header", "User-Agent:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
         "--add-header", "Accept-Language:en-US,en;q=0.9",
     ]
 
-    cmd1 = base_cmd + browser_headers + [
+    # Attempt 1: with sections + best quality
+    cmd1 = base_args + browser_headers + [
+        "--download-sections", "*0:00-0:30",
+        "--force-keyframes-at-cuts",
+        "--merge-output-format", "mp4",
         "--format", "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best",
         url
     ]
-    code, stderr = await run_ytdlp(cmd1)
-    print(f"Attempt 1 - exit: {code}, file: {output_path.exists()}")
-    if stderr: print(f"stderr: {stderr[:300]}")
-    if code == 0 and output_path.exists():
-        return True
+    code1, stderr1 = await run_cmd(cmd1)
+    print(f"Attempt 1 [{platform}] - exit: {code1}, file: {raw_path.exists()}")
+    if stderr1 and "error" in stderr1.lower(): print(f"  stderr: {stderr1[:200]}")
 
-    if output_path.exists(): output_path.unlink()
+    if not (code1 == 0 and raw_path.exists()):
+        if raw_path.exists(): raw_path.unlink()
+        # Attempt 2: simpler format, no sections restriction
+        cmd2 = base_args + [
+            "--format", "best[height<=480]/worst",
+            url
+        ]
+        code2, stderr2 = await run_cmd(cmd2, timeout=90)
+        print(f"Attempt 2 [{platform}] - exit: {code2}, file: {raw_path.exists()}")
+        if stderr2 and "error" in stderr2.lower(): print(f"  stderr2: {stderr2[:200]}")
 
-    cmd2 = [
-        sys.executable, "-m", "yt_dlp",
-        "--no-playlist",
-        "--format", "best[height<=480]/best",
-        "--no-check-certificates",
-        "--socket-timeout", "30",
-        "--add-header", "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "-o", str(output_path),
-    ] + cookies_args + [url]
+        if not (code2 == 0 and raw_path.exists()):
+            print(f"Both download attempts failed for {platform}")
+            return False
 
-    code2, stderr2 = await run_ytdlp(cmd2, timeout=90)
-    print(f"Attempt 2 - exit: {code2}, file: {output_path.exists()}")
-    if stderr2: print(f"stderr2: {stderr2[:300]}")
-    if code2 == 0 and output_path.exists():
-        return True
+    # Always re-encode to ensure Gemini compatibility + enforce 30s limit
+    print(f"Re-encoding for Gemini compatibility...")
+    success = await reencode_video(raw_path, final_path)
+    if raw_path.exists(): raw_path.unlink()  # clean up raw file
 
-    print("Both download attempts failed")
-    return False
+    return success
 
 def upload_to_gemini(video_path: Path) -> Optional[object]:
     try:
@@ -322,7 +322,7 @@ def upload_to_gemini(video_path: Path) -> Optional[object]:
         print(f"Uploading to Gemini: {video_path.name}, size: {file_size//1024}KB")
 
         if file_size > 50 * 1024 * 1024:
-            print(f"File too large ({file_size//1024//1024}MB), rejecting")
+            print(f"File too large ({file_size//1024//1024}MB) after re-encode, rejecting")
             return None
 
         with open(video_path, "rb") as f:
@@ -409,7 +409,7 @@ def cleanup_gemini_file(gemini_file):
 
 def cleanup_local_file(path: Path):
     try:
-        if path.exists():
+        if path and path.exists():
             path.unlink()
     except Exception:
         pass
@@ -425,7 +425,7 @@ def build_layer(raw: dict, key: str) -> LayerResult:
 def build_info_layer(raw: dict) -> InfoResult:
     layer = raw.get("information_integrity", {})
     severity = layer.get("severity", "none")
-    label_raw = layer.get("label", "No integrity issues found")
+    label_raw = layer.get("label", "No issues detected")
     detail = layer.get("detail", "No factual claims requiring verification were detected.")
     return InfoResult(severity=severity, label=label_raw, detail=detail)
 
@@ -449,15 +449,16 @@ async def verify_video(req: VerifyRequest):
 
     scan_id = make_scan_id()
     platform = detect_platform(url)
-    video_path = TEMP_DIR / f"{scan_id}.mp4"
+    raw_path   = TEMP_DIR / f"{scan_id}_raw.mp4"
+    final_path = TEMP_DIR / f"{scan_id}.mp4"
 
     try:
-        downloaded = await download_video(url, video_path)
+        downloaded = await download_video(url, raw_path, final_path)
         if not downloaded:
             raise HTTPException(422, "Could not download video. The link may be private, expired, or unsupported.")
 
-        gemini_file = upload_to_gemini(video_path)
-        cleanup_local_file(video_path)
+        gemini_file = upload_to_gemini(final_path)
+        cleanup_local_file(final_path)
 
         if not gemini_file:
             raise HTTPException(500, "Failed to process video for analysis.")
@@ -512,5 +513,6 @@ async def verify_video(req: VerifyRequest):
     except HTTPException:
         raise
     except Exception as e:
-        cleanup_local_file(video_path)
+        cleanup_local_file(raw_path)
+        cleanup_local_file(final_path)
         raise HTTPException(500, f"Unexpected error: {str(e)}")
