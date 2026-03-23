@@ -129,9 +129,12 @@ Respond ONLY with a valid JSON object. No markdown, no explanation outside the J
   ]
 }
 
-Be direct, specific, and accurate. Don't hedge excessively — give your best forensic assessment.
-If you genuinely cannot assess a layer (e.g. no face visible), mark it 'warn' and explain.
-"""
+CRITICAL FORMATTING RULES — YOU MUST FOLLOW THESE:
+- Every "label" value: MAXIMUM 6 words. Example: "No AI patterns detected"
+- Every "detail" value: MAXIMUM 2 sentences. Be concise.  
+- The full JSON must be complete and valid — never leave a string open or truncate.
+- If a layer cannot be assessed, use "warn" with a brief 1-sentence note.
+Be direct. Give your best forensic judgment."
 
 # ── HELPERS ───────────────────────────────────────────────────────
 def detect_platform(url: str) -> str:
@@ -193,7 +196,7 @@ async def download_video(url: str, output_path: Path) -> bool:
         sys.executable, "-m", "yt_dlp",
         "--no-playlist",
         "--merge-output-format", "mp4",
-        "--download-sections", "*0:00-1:00",
+        "--download-sections", "*0:00-0:30",
         "--force-keyframes-at-cuts",
         "--no-check-certificates",
         "--socket-timeout", "30",
@@ -245,6 +248,9 @@ def upload_to_gemini(video_path: Path) -> Optional[object]:
     try:
         file_size = video_path.stat().st_size
         print(f"Uploading to Gemini: {video_path.name}, size: {file_size//1024}KB")
+        if file_size > 50 * 1024 * 1024:  # 50MB limit
+            print(f"File too large ({file_size//1024//1024}MB), rejecting")
+            return None
         with open(video_path, "rb") as f:
             file = gemini_client.files.upload(
                 file=f,
@@ -283,7 +289,7 @@ def analyze_with_gemini(gemini_file) -> Optional[dict]:
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
                 temperature=0.1,
-                max_output_tokens=1500,
+                max_output_tokens=4096,
                 response_mime_type="application/json"
             )
         )
@@ -292,20 +298,57 @@ def analyze_with_gemini(gemini_file) -> Optional[dict]:
         raw = re.sub(r'^```(?:json)?\s*', '', raw, flags=re.MULTILINE)
         raw = re.sub(r'\s*```$', '', raw, flags=re.MULTILINE)
         raw = raw.strip()
-        # Try direct parse first
+
+        def sanitize_json(s):
+            """Fix unescaped newlines/tabs inside JSON string values."""
+            result = []
+            in_string = False
+            i = 0
+            while i < len(s):
+                c = s[i]
+                if c == '\\' and in_string:
+                    result.append(c)
+                    i += 1
+                    if i < len(s):
+                        result.append(s[i])
+                    i += 1
+                    continue
+                if c == '"':
+                    in_string = not in_string
+                    result.append(c)
+                elif in_string and c == '\n':
+                    result.append('\\n')
+                elif in_string and c == '\r':
+                    result.append('\\r')
+                elif in_string and c == '\t':
+                    result.append('\\t')
+                else:
+                    result.append(c)
+                i += 1
+            return ''.join(result)
+
+        # Try direct parse
         try:
             return json.loads(raw)
         except json.JSONDecodeError:
-            # Try to extract JSON object from response
-            match = re.search(r'\{.*\}', raw, re.DOTALL)
-            if match:
-                try:
-                    return json.loads(match.group())
-                except json.JSONDecodeError:
-                    pass
-            # Last resort: ask Gemini to fix its own JSON
-            print(f"JSON parse failed, raw response: {raw[:200]}")
-            return None
+            pass
+
+        # Try sanitized parse
+        try:
+            return json.loads(sanitize_json(raw))
+        except json.JSONDecodeError:
+            pass
+
+        # Try extracting JSON object then sanitizing
+        match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if match:
+            try:
+                return json.loads(sanitize_json(match.group()))
+            except json.JSONDecodeError:
+                pass
+
+        print(f"JSON parse failed after all attempts. Raw: {raw[:300]}")
+        return None
     except Exception as e:
         print(f"Gemini analysis error: {e}")
         return None
